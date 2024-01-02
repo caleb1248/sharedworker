@@ -1,0 +1,13 @@
+{
+  "name": "sharedworker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "app1": "node app1/index.js",
+    "app2": "cd app2 && npm run dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
