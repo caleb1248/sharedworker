@@ -5,22 +5,17 @@ import type { ChannelMessage, RequestData } from '../src/types';
 // @ts-ignore
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const channel = new BroadcastChannel('request-proxy');
-
 const servers: Map<string, MessagePort> = new Map();
-
-function log(...data: any[]) {
-  console.log('[Service worker]:', ...data);
-}
-
 sw.addEventListener('message', (e) => {
   const data: ChannelMessage = e.data;
   if (data.type == 'server/create') {
-    const port = data.port;
+    const port = e.ports[0];
+    console.log(port);
     servers.set(data.id, port);
-    console.log(data.id);
-    log('create server');
-    port.postMessage('hello world');
+    port.start();
+    console.log('create server with id of', data.id);
+  } else if (data.type === 'server/shutdown') {
+    console.log('thing shut down');
   }
 });
 
@@ -30,20 +25,10 @@ sw.addEventListener('error', (e) => {
 });
 
 sw.addEventListener('install', (event) => {
-  log('installing');
-  event.waitUntil(
-    caches
-      .open('interal-server-provider-cache')
-      .then((cache) =>
-        cache.addAll([
-          '/localfs-internal-server-provider/index.html',
-          'localfs-internal-server-provider/index.js',
-        ])
-      )
-  );
+  sw.skipWaiting();
 });
 
-sw.addEventListener('activate', () => log('activated'));
+sw.addEventListener('activate', () => console.log('activated'));
 
 sw.addEventListener('fetch', (event) => {
   const serverId = 'test';
@@ -74,8 +59,10 @@ sw.addEventListener('fetch', (event) => {
 
     return;
   } else {
+    console.log('request incoming');
     const id = Date.now();
     const server = servers.get(serverId);
+    console.log('no server found');
     if (!server) {
       event.respondWith(
         new Response(
@@ -85,8 +72,40 @@ sw.addEventListener('fetch', (event) => {
       );
       return;
     }
-    const { clone, arrayBuffer, blob, formData, json, text, ...req } =
-      event.request;
+    const r: Omit<
+      Request,
+      | 'clone'
+      | 'arrayBuffer'
+      | 'blob'
+      | 'json'
+      | 'text'
+      | 'formData'
+      | 'signal'
+      | 'mode'
+    > = event.request.clone();
+    delete r['arrayBuffer'];
+    delete r['blob'];
+    delete r['json'];
+    delete r['text'];
+    delete r['formData'];
+    delete r['mode'];
+    delete r['signal'];
+    // @ts-ignore
+    const req = {
+      cache: r.cache,
+      credentials: r.credentials,
+      destination: r.destination,
+      headers: Array.from(r.headers.entries()),
+      integrity: r.integrity,
+      keepalive: r.keepalive,
+      method: r.method,
+      redirect: r.redirect,
+      referrer: r.referrer,
+      referrerPolicy: r.referrerPolicy,
+      url: r.url,
+      body: r.body,
+      bodyUsed: r.bodyUsed,
+    };
 
     const data: RequestData = {
       type: 'sw/request',
@@ -94,6 +113,28 @@ sw.addEventListener('fetch', (event) => {
       data: req,
     };
 
-    server.postMessage(data, data.data.body ? [data.data.body] : []);
+    event.respondWith(
+      new Promise((resolve) => {
+        function handleServerResponse({ data }: MessageEvent<ChannelMessage>) {
+          console.log('message from server', data.type);
+          if (data.type === 'error' && data.id === id) {
+            resolve(new Response('internal server error', { status: 500 }));
+          } else if (data.type === 'server/shutdown' && data.id === serverId) {
+            resolve(new Response('Error: Server shut down'));
+          } else if (data.type === 'server/response' && data.id === id) {
+            console.log('response recived!');
+            const { body, ...rest } = data.data;
+            if (body) resolve(new Response(body, rest));
+          } else {
+            console.log(data.type, data.id);
+          }
+          server?.removeEventListener('message', handleServerResponse);
+          console.log('event listener removed');
+        }
+
+        server.addEventListener('message', handleServerResponse);
+        server.postMessage(data, data.data.body ? [data.data.body] : []);
+      })
+    );
   }
 });
