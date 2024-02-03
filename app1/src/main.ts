@@ -1,6 +1,38 @@
 import { ChannelMessage, ResponseData } from '../../app2/src/types';
+import esbuild from 'esbuild-wasm';
 
-const iframe = document.body.appendChild(document.createElement('iframe'));
+let handle: FileSystemDirectoryHandle;
+
+document
+  .querySelector('#directory-picker')
+  ?.addEventListener(
+    'click',
+    async () => (handle = await showDirectoryPicker())
+  );
+
+esbuild.context({
+  plugins: [
+    {
+      name: 'thing',
+      setup(build) {
+        build.onLoad({ filter: /.*/ }, (args) => {
+          if (!handle) {
+            return {
+              errors: [{ text: 'file not found' }],
+            };
+          }
+
+          const segments = '';
+        });
+      },
+    },
+  ],
+});
+
+type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+const iframe = document
+  .querySelector('#app')!
+  .appendChild(document.createElement('iframe'));
 iframe.src =
   'http://localhost:4000/localfs-internal-server-provider/index.html';
 iframe.title = 'no touchy touchy';
@@ -17,12 +49,13 @@ iframe.addEventListener('load', () => {
     console.log('message');
     if (e.data.type === 'sw/request') {
       console.log('incoming request');
-      const r: Omit<
+      const r: PartialBy<
         Response,
         'clone' | 'arrayBuffer' | 'blob' | 'json' | 'text' | 'formData'
       > = new Response('hi', {
         headers: { 'Content-type': 'text/html' } as Record<string, string>,
       });
+      console.log(Object.getPrototypeOf(r));
 
       delete r['clone'];
       delete r['arrayBuffer'];
@@ -30,8 +63,6 @@ iframe.addEventListener('load', () => {
       delete r['json'];
       delete r['text'];
       delete r['formData'];
-      delete r['mode'];
-      delete r['signal'];
 
       const resp: ResponseData['data'] = {
         body: r.body,
