@@ -1,5 +1,14 @@
 import { ChannelMessage, ResponseData } from '../../app2/src/types';
+import path from 'path-browserify';
 import esbuild from 'esbuild-wasm';
+import wasmURL from 'esbuild-wasm/esbuild.wasm?url';
+
+await esbuild.initialize({ wasmURL });
+
+declare global {
+  var process: object;
+}
+globalThis.process = { cwd: () => '/' };
 
 let handle: FileSystemDirectoryHandle;
 
@@ -7,26 +16,60 @@ document
   .querySelector('#directory-picker')
   ?.addEventListener(
     'click',
-    async () => (handle = await showDirectoryPicker())
+    async () => (window.handle = handle = await showDirectoryPicker())
   );
 
-esbuild.context({
-  plugins: [
-    {
-      name: 'thing',
-      setup(build) {
-        build.onLoad({ filter: /.*/ }, (args) => {
-          if (!handle) {
+document.querySelector('#run')?.addEventListener('click', async () => {
+  const ctx = esbuild.build({
+    entryPoints: ['src/main.ts'],
+    bundle: true,
+    plugins: [
+      {
+        name: 'thing',
+        setup(build) {
+          build.onResolve({ filter: /.*/ }, (args) => {
             return {
-              errors: [{ text: 'file not found' }],
+              path: path.resolve(path.dirname(args.importer), args.path),
+              namespace: 'e',
             };
-          }
+          });
+          build.onLoad({ filter: /.*/, namespace: 'e' }, async (args) => {
+            const output: esbuild.OnLoadResult = { errors: [] };
+            if (!handle)
+              output.errors?.push({ text: "directory handle doesn't exist" });
+            const segments = args.path
+              .replace(/$.\//, '')
+              .split('/')
+              .filter((v) => v.length > 0);
+            const fileName = segments.pop();
+            if (!fileName) output.errors?.push({ text: 'file name is empty' });
+            let currentDir = handle;
+            console.log(segments);
+            try {
+              for (const segment of segments) {
+                console.log(segment);
+                currentDir = await currentDir.getDirectoryHandle(segment, {
+                  create: false,
+                });
+              }
 
-          const segments = '';
-        });
+              output.contents = new Uint8Array(
+                await (
+                  await (await currentDir.getFileHandle(fileName!)).getFile()
+                ).arrayBuffer()
+              );
+            } catch {
+              output.errors?.push({
+                text: 'File not found: ' + args.path,
+              });
+            }
+            if (output.errors?.length == 0) delete output.errors;
+            return output;
+          });
+        },
       },
-    },
-  ],
+    ],
+  });
 });
 
 type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

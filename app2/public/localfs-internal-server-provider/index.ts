@@ -1,5 +1,3 @@
-import type { Overwrite, ChannelMessage } from '../../src/types';
-
 function generateRandomId() {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz';
   let id = '';
