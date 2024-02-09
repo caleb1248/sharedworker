@@ -1,23 +1,56 @@
-import { ChannelMessage, ResponseData } from '../../app2/src/types';
+import type { FsFile, FsFolder } from './fileTypes';
+import type { ChannelMessage, ResponseData } from '../../app2/src/types';
 import path from 'path-browserify';
-import esbuild from 'esbuild-wasm';
+import esbuild from 'esbuild-wasm/esm/browser';
 import wasmURL from 'esbuild-wasm/esbuild.wasm?url';
+import FsWorker from './fsLoader?worker';
 
 await esbuild.initialize({ wasmURL });
 
+const fsLoader = new FsWorker();
+
 declare global {
   var process: object;
+  var handle: FileSystemDirectoryHandle | undefined;
 }
 globalThis.process = { cwd: () => '/' };
 
 let handle: FileSystemDirectoryHandle;
+let cwd: FsFolder;
+
+function fileExists(path: string) {
+  if (!cwd) return false;
+  const segments = path
+    .replace(/^\//, '')
+    .split('/')
+    .filter((v) => v.length > 0);
+  const fileName = segments.pop();
+  if (!fileName) return false;
+  let currentDir = cwd;
+  for (const segment of segments) {
+    const newDir = currentDir.contents[segment];
+    if (!newDir || newDir.type === 'file') return false;
+    currentDir = newDir;
+  }
+  const file = currentDir.contents[fileName];
+  if (!file || file.type !== 'file') return false;
+  return true;
+}
 
 document
   .querySelector('#directory-picker')
-  ?.addEventListener(
-    'click',
-    async () => (window.handle = handle = await showDirectoryPicker())
-  );
+  ?.addEventListener('click', async () => {
+    const handle = await showDirectoryPicker();
+    fsLoader.postMessage(handle);
+    cwd = await new Promise((resolve, reject) => {
+      fsLoader.addEventListener('message', (e) => resolve(e.data), {
+        once: true,
+      });
+      fsLoader.addEventListener('error', ({ error }) => reject(error), {
+        once: true,
+      });
+    });
+  });
 
 document.querySelector('#run')?.addEventListener('click', async () => {
   const ctx = esbuild.build({
@@ -29,7 +62,7 @@ document.querySelector('#run')?.addEventListener('click', async () => {
         setup(build) {
           build.onResolve({ filter: /.*/ }, (args) => {
             return {
-              path: path.resolve(path.dirname(args.importer), args.path),
+              path: path.resolve(path.dirname(args.importer)),
               namespace: 'e',
             };
           });
@@ -38,7 +71,7 @@ document.querySelector('#run')?.addEventListener('click', async () => {
             if (!handle)
               output.errors?.push({ text: "directory handle doesn't exist" });
             const segments = args.path
-              .replace(/$.\//, '')
+              .replace(/^\//, '')
               .split('/')
               .filter((v) => v.length > 0);
             const fileName = segments.pop();
