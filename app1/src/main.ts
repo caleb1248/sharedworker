@@ -15,7 +15,6 @@ declare global {
 }
 globalThis.process = { cwd: () => '/' };
 
-let handle: FileSystemDirectoryHandle;
 let cwd: FsFolder;
 
 function fileExists(path: string) {
@@ -37,6 +36,32 @@ function fileExists(path: string) {
   return true;
 }
 
+function getFile(path: string) {
+  if (!cwd) return null;
+  const segments = path
+    .replace(/^\//, '')
+    .split('/')
+    .filter((v) => v.length > 0);
+
+  const fileName = segments.pop();
+  if (!fileName) return null;
+
+  let currentDir = cwd;
+  for (const segment of segments) {
+    const newDir = currentDir.contents[segment];
+    if (!newDir || newDir.type === 'file') return null;
+    currentDir = newDir;
+  }
+
+  const file = currentDir.contents[fileName];
+  if (!file || file.type !== 'file') return null;
+  return file;
+}
+
+function isNodeModule(importPath: string) {
+  return !importPath.startsWith('.') && !importPath.startsWith('/');
+}
+
 document
   .querySelector('#directory-picker')
   ?.addEventListener('click', async () => {
@@ -50,52 +75,71 @@ document
         once: true,
       });
     });
+    alert('yayy');
   });
 
 document.querySelector('#run')?.addEventListener('click', async () => {
   const ctx = esbuild.build({
     entryPoints: ['src/main.ts'],
+    format: 'esm',
     bundle: true,
+
     plugins: [
       {
         name: 'thing',
         setup(build) {
           build.onResolve({ filter: /.*/ }, (args) => {
-            return {
-              path: path.resolve(path.dirname(args.importer)),
-              namespace: 'e',
-            };
+            return { namespace: 'e' };
+            console.log(args.path);
+            console.log(args.importer);
+            if (isNodeModule(args.path)) {
+              const pathSegments = args.path.split('/');
+              if (pathSegments.length == 0) return null;
+              let nodeModule = pathSegments.splice(0, 1)[0];
+              if (nodeModule.startsWith('@'))
+                if (pathSegments[0].startsWith('@')) {
+                  nodeModule = `/node_modules/${pathSegments[0]}/${pathSegments[1]}`;
+                } else {
+                  nodeModule;
+                }
+            }
+            const resolvedPath =
+              args.importer.length == 0
+                ? args.path
+                : path.resolve(path.dirname(args.importer), args.path);
+
+            const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+
+            for (const extension of extensions) {
+              const filePath = resolvedPath + extension;
+              if (fileExists(filePath)) {
+                return { path: filePath, namespace: 'e' };
+              }
+            }
+
+            return { path: resolvedPath, namespace: 'e' };
           });
+
           build.onLoad({ filter: /.*/, namespace: 'e' }, async (args) => {
             const output: esbuild.OnLoadResult = { errors: [] };
-            if (!handle)
-              output.errors?.push({ text: "directory handle doesn't exist" });
-            const segments = args.path
-              .replace(/^\//, '')
-              .split('/')
-              .filter((v) => v.length > 0);
-            const fileName = segments.pop();
-            if (!fileName) output.errors?.push({ text: 'file name is empty' });
-            let currentDir = handle;
-            console.log(segments);
-            try {
-              for (const segment of segments) {
-                console.log(segment);
-                currentDir = await currentDir.getDirectoryHandle(segment, {
-                  create: false,
-                });
-              }
 
-              output.contents = new Uint8Array(
-                await (
-                  await (await currentDir.getFileHandle(fileName!)).getFile()
-                ).arrayBuffer()
-              );
-            } catch {
-              output.errors?.push({
-                text: 'File not found: ' + args.path,
-              });
+            if (args.path.endsWith('.tsx')) output.loader = 'tsx';
+            if (args.path.endsWith('.ts')) output.loader = 'ts';
+            if (args.path.endsWith('.jsx')) output.loader = 'jsx';
+            if (args.path.endsWith('.js')) output.loader = 'js';
+            if (args.path.endsWith('.css')) output.loader = 'css';
+            if (args.path.endsWith('.json')) output.loader = 'json';
+
+            if (!cwd)
+              output.errors?.push({ text: "directory handle doesn't exist" });
+            const file = getFile(args.path);
+
+            if (file == null) {
+              output.errors?.push({ text: 'File not found: ' + args.path });
+            } else {
+              output.contents = file.contents;
             }
+
             if (output.errors?.length == 0) delete output.errors;
             return output;
           });
