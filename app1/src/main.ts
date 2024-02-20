@@ -1,9 +1,9 @@
 import type { FsFile, FsFolder } from './fileTypes';
 import type { ChannelMessage, ResponseData } from '../../app2/src/types';
 import path from 'path-browserify';
-import esbuild from 'esbuild-wasm/esm/browser';
-import wasmURL from 'esbuild-wasm/esbuild.wasm?url';
 import FsWorker from './fsLoader?worker';
+import * as esbuild from 'esbuild-wasm';
+import wasmURL from 'esbuild-wasm/esbuild.wasm?url';
 
 await esbuild.initialize({ wasmURL });
 
@@ -78,20 +78,23 @@ document
     alert('yayy');
   });
 
-document.querySelector('#run')?.addEventListener('click', async () => {
-  const ctx = esbuild.build({
-    entryPoints: ['src/main.ts'],
-    format: 'esm',
-    bundle: true,
+function resolve() {}
 
+document.querySelector('#run')?.addEventListener('click', async () => {
+  console.log('eee');
+  const ctx = await esbuild.build({
+    format: 'esm',
+    bundle: false,
+    write: false,
+    entryPoints: ['/src/main.ts'],
     plugins: [
       {
         name: 'thing',
         setup(build) {
-          build.onResolve({ filter: /.*/ }, (args) => {
-            return { namespace: 'e' };
-            console.log(args.path);
-            console.log(args.importer);
+          console.log('build setup');
+          build.onResolve({ filter: /.*/ }, async (args) => {
+            console.log('build resolve');
+            const { path: _, ...rest } = args;
             if (isNodeModule(args.path)) {
               const pathSegments = args.path.split('/');
               if (pathSegments.length == 0) return null;
@@ -121,8 +124,9 @@ document.querySelector('#run')?.addEventListener('click', async () => {
           });
 
           build.onLoad({ filter: /.*/, namespace: 'e' }, async (args) => {
+            console.log('build.load');
             const output: esbuild.OnLoadResult = { errors: [] };
-
+            console.log('yay');
             if (args.path.endsWith('.tsx')) output.loader = 'tsx';
             if (args.path.endsWith('.ts')) output.loader = 'ts';
             if (args.path.endsWith('.jsx')) output.loader = 'jsx';
@@ -147,6 +151,7 @@ document.querySelector('#run')?.addEventListener('click', async () => {
       },
     ],
   });
+  console.log(ctx.outputFiles[0].text);
 });
 
 type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
