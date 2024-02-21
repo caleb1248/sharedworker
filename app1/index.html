@@ -7,9 +7,18 @@
     <title>Vite + TS</title>
   </head>
   <body>
-    <div id="app" class="w-full h-full">
-      <button id="directory-picker">pick directory</button>
-      <button id="run">run context</button>
+    <div
+      id="app"
+      class="w-full h-full bg-neutral-900 text-gray-100 flex drag-e"
+    >
+      <div id="sidebar" style="width: 200px" class="flex flex-col relative">
+        <button id="directory-picker">pick directory</button>
+        <button id="run">run context</button>
+        <div
+          class="slider absolute top-0 bottom-0 right-0 w-1 cursor-e-resize"
+        ></div>
+      </div>
+      <div></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

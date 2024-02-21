@@ -14,6 +14,7 @@ declare global {
   var process: object;
   var handle: FileSystemDirectoryHandle | undefined;
 }
+
 globalThis.process = { cwd: () => '/' };
 
 let cwd: FsFolder;
