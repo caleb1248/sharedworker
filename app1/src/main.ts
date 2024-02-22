@@ -1,5 +1,6 @@
 import type { FsFile, FsFolder } from './fileTypes';
 // import type { ChannelMessage, ResponseData } from '../../app2/src/types';
+import './layout';
 import path from 'path-browserify';
 import FsWorker from './fsLoader?worker';
 import * as esbuild from 'esbuild-wasm';
