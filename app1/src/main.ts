@@ -3,11 +3,9 @@ import type { FsFile, FsFolder } from './fileTypes';
 import './layout';
 import path from 'path-browserify';
 import FsWorker from './fsLoader?worker';
-import * as esbuild from 'esbuild-wasm';
-import wasmURL from 'esbuild-wasm/esbuild.wasm?url';
+import { transform } from '@babel/standalone';
+transform('console.log("hello world");', { plugins: [''] });
 import './style.css';
-
-await esbuild.initialize({ wasmURL });
 
 const fsLoader = new FsWorker();
 
@@ -81,80 +79,35 @@ document
     alert('yayy');
   });
 
-function resolve() {}
+function resolve(args: { path: string; importer: string }) {
+  console.log('build.load');
+  const output: {
+    loader?: string;
+    contents?: string | Uint8Array;
+    errors?: { text: string }[];
+  } = { errors: [] };
+  console.log('yay');
+  if (args.path.endsWith('.tsx')) output.loader = 'tsx';
+  if (args.path.endsWith('.ts')) output.loader = 'ts';
+  if (args.path.endsWith('.jsx')) output.loader = 'jsx';
+  if (args.path.endsWith('.js')) output.loader = 'js';
+  if (args.path.endsWith('.css')) output.loader = 'css';
+  if (args.path.endsWith('.json')) output.loader = 'json';
 
-document.querySelector('#run')?.addEventListener('click', async () => {
-  console.log('eee');
-  const ctx = await esbuild.build({
-    format: 'esm',
-    bundle: false,
-    write: false,
-    entryPoints: ['/src/main.ts'],
-    plugins: [
-      {
-        name: 'thing',
-        setup(build) {
-          console.log('build setup');
-          build.onResolve({ filter: /.*/ }, async (args) => {
-            console.log('build resolve');
-            if (isNodeModule(args.path)) {
-              const pathSegments = args.path.split('/');
-              if (pathSegments.length == 0) return null;
-              let nodeModule = pathSegments.splice(0, 1)[0];
-              if (nodeModule.startsWith('@'))
-                if (pathSegments[0].startsWith('@')) {
-                  nodeModule = `/node_modules/${pathSegments[0]}/${pathSegments[1]}`;
-                } else {
-                  nodeModule;
-                }
-            }
-            const resolvedPath =
-              args.importer.length == 0
-                ? args.path
-                : path.resolve(path.dirname(args.importer), args.path);
+  if (!cwd) output.errors?.push({ text: "directory handle doesn't exist" });
+  const file = getFile(args.path);
 
-            const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+  if (file == null) {
+    output.errors?.push({ text: 'File not found: ' + args.path });
+  } else {
+    output.contents = file.contents;
+  }
 
-            for (const extension of extensions) {
-              const filePath = resolvedPath + extension;
-              if (fileExists(filePath)) {
-                return { path: filePath, namespace: 'e' };
-              }
-            }
+  if (output.errors?.length == 0) delete output.errors;
+  return output;
+}
 
-            return { path: resolvedPath, namespace: 'e' };
-          });
-
-          build.onLoad({ filter: /.*/, namespace: 'e' }, async (args) => {
-            console.log('build.load');
-            const output: esbuild.OnLoadResult = { errors: [] };
-            console.log('yay');
-            if (args.path.endsWith('.tsx')) output.loader = 'tsx';
-            if (args.path.endsWith('.ts')) output.loader = 'ts';
-            if (args.path.endsWith('.jsx')) output.loader = 'jsx';
-            if (args.path.endsWith('.js')) output.loader = 'js';
-            if (args.path.endsWith('.css')) output.loader = 'css';
-            if (args.path.endsWith('.json')) output.loader = 'json';
-
-            if (!cwd)
-              output.errors?.push({ text: "directory handle doesn't exist" });
-            const file = getFile(args.path);
-
-            if (file == null) {
-              output.errors?.push({ text: 'File not found: ' + args.path });
-            } else {
-              output.contents = file.contents;
-            }
-
-            if (output.errors?.length == 0) delete output.errors;
-            return output;
-          });
-        },
-      },
-    ],
-  });
-  console.log(ctx.outputFiles[0].text);
-});
+document.querySelector('#run')?.addEventListener('click', async () => {});
 
 // type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 // const iframe = document

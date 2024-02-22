@@ -7,37 +7,35 @@ let hovering = false;
 let timeout = 0;
 
 function handleMouseLeave() {
+  if (dragging) return;
   if (timeout) clearTimeout(timeout);
-  slider.removeEventListener('mouseleave', handleMouseLeave);
-  slider.removeEventListener('mousedown', handleMouseLeave);
+  slider.classList.remove('bg-sky-600');
+}
+
+function handleMouseDown() {
+  if (timeout) clearTimeout(timeout);
+  timeout = 0;
+  slider.classList.add('bg-sky-600');
 }
 
 slider.addEventListener('mouseenter', () => {
-  function timeoutFinished() {
+  timeout = setTimeout(() => {
     timeout = 0;
-    slider.removeEventListener('mouseleave', handleMouseLeave);
-    slider.removeEventListener('mousedown', handleMouseLeave);
     slider.classList.add('bg-sky-600');
-  }
-
-  timeout = setTimeout(timeoutFinished, 250);
-
-  function handleMouseDown() {
-    clearTimeout(timeout);
-    timeoutFinished();
-  }
-
-  slider.addEventListener('mouseleave', handleMouseLeave);
-  slider.addEventListener('mousedown', handleMouseDown);
+  }, 250);
 });
 
 slider.addEventListener('mousedown', () => {
+  if (timeout) clearTimeout(timeout);
+  timeout = 0;
   dragging = true;
   slider.classList.add('bg-sky-600');
 });
 
-document.body.addEventListener('mouseup', () => {
-  dragging = false;
-});
+slider.addEventListener('mouseleave', handleMouseLeave);
 
-slider.addEventListener('mousemove', (e) => {});
+document.body.addEventListener('mouseup', () => (dragging = false));
+
+document.body.addEventListener('mousemove', (e) => {
+  if (dragging) sidebar.style.width = `${Math.max(e.clientX, 250)}px`;
+});
