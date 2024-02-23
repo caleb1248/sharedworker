@@ -1,18 +1,15 @@
 import type { NodePath, PluginObj, PluginPass } from '@babel/core';
-import t from '@babel/types';
+import * as t from '@babel/types';
 
 type ReplaceFunc = (source: string, file: string, opts: any) => string;
-function getReplaceFunc({ replaceFunc }: { replaceFunc: ReplaceFunc }) {
-  return replaceFunc;
-}
 
-const importRewrite: () => PluginObj = () => {
+const importRewrite: (replacer: ReplaceFunc) => PluginObj = (replaceFunc) => {
   let cachedReplaceFunction: ReplaceFunc;
 
   function mapModule(source: string, file: string, state: { opts: any }) {
     const opts = state.opts;
     if (!cachedReplaceFunction) {
-      cachedReplaceFunction = getReplaceFunc(opts);
+      cachedReplaceFunction = replaceFunc;
     }
     const replace = cachedReplaceFunction;
     const result = replace(source, file, opts);

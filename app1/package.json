@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/browser-resolve": "^2.0.4",
     "@types/path-browserify": "^1.0.2",
     "@types/wicg-file-system-access": "^2023.10.4",
     "autoprefixer": "^10.4.17",
@@ -20,6 +21,7 @@
   "dependencies": {
     "@babel/standalone": "^7.23.10",
     "@types/babel__standalone": "^7.1.7",
+    "browser-resolve": "^2.0.0",
     "monaco-editor": "^0.46.0",
     "path-browserify": "^1.0.1"
   }

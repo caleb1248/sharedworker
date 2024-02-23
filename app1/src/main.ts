@@ -1,12 +1,29 @@
-import type { FsFile, FsFolder } from './fileTypes';
-// import type { ChannelMessage, ResponseData } from '../../app2/src/types';
-import './layout';
-import path from 'path-browserify';
-import FsWorker from './fsLoader?worker';
-import { transform } from '@babel/standalone';
-transform('import * as fs from "fs";', { plugins: [importRewrite()] });
 import './style.css';
+import * as babel from '@babel/standalone';
+import './layout';
+import FsWorker from './fsLoader?worker';
 import importRewrite from './importRewrite';
+import type { FsFolder } from './fileTypes';
+import { requireResolve } from './requireResolve';
+// import type { ChannelMessage, ResponseData } from '../../app2/src/types';
+console.log(
+  babel.transform('import * as fs from "../lol/thing.ts";', {
+    root: '/',
+    cwd: '/',
+    filename: '/hello world/hi/index.js',
+    plugins: [
+      importRewrite((source, file) => {
+        return requireResolve({
+          id: source,
+          importer: file,
+          readFileSync: (fileName) => getFile(fileName)?.contents as string,
+          fileExists: (fileName) => fileExists(fileName),
+          directoryExists: (directoryName) => directoryExists(directoryName),
+        });
+      }),
+    ],
+  }).code
+);
 
 const fsLoader = new FsWorker();
 
@@ -14,8 +31,6 @@ declare global {
   var process: object;
   var handle: FileSystemDirectoryHandle | undefined;
 }
-
-globalThis.process = { cwd: () => '/' };
 
 let cwd: FsFolder;
 
@@ -35,6 +50,25 @@ function fileExists(path: string) {
   }
   const file = currentDir.contents[fileName];
   if (!file || file.type !== 'file') return false;
+  return true;
+}
+
+function directoryExists(path: string) {
+  if (!cwd) return false;
+  const segments = path
+    .replace(/^\//, '')
+    .split('/')
+    .filter((v) => v.length > 0);
+  const fileName = segments.pop();
+  if (!fileName) return false;
+  let currentDir = cwd;
+  for (const segment of segments) {
+    const newDir = currentDir.contents[segment];
+    if (!newDir || newDir.type === 'file') return false;
+    currentDir = newDir;
+  }
+  const file = currentDir.contents[fileName];
+  if (!file || file.type !== 'folder') return false;
   return true;
 }
 
@@ -60,10 +94,6 @@ function getFile(path: string) {
   return file;
 }
 
-function isNodeModule(importPath: string) {
-  return !importPath.startsWith('.') && !importPath.startsWith('/');
-}
-
 document
   .querySelector('#directory-picker')
   ?.addEventListener('click', async () => {
@@ -80,35 +110,26 @@ document
     alert('yayy');
   });
 
-function resolve(args: { path: string; importer: string }) {
-  console.log('build.load');
-  const output: {
-    loader?: string;
-    contents?: string | Uint8Array;
-    errors?: { text: string }[];
-  } = { errors: [] };
-  console.log('yay');
-  if (args.path.endsWith('.tsx')) output.loader = 'tsx';
-  if (args.path.endsWith('.ts')) output.loader = 'ts';
-  if (args.path.endsWith('.jsx')) output.loader = 'jsx';
-  if (args.path.endsWith('.js')) output.loader = 'js';
-  if (args.path.endsWith('.css')) output.loader = 'css';
-  if (args.path.endsWith('.json')) output.loader = 'json';
-
-  if (!cwd) output.errors?.push({ text: "directory handle doesn't exist" });
-  const file = getFile(args.path);
-
-  if (file == null) {
-    output.errors?.push({ text: 'File not found: ' + args.path });
-  } else {
-    output.contents = file.contents;
-  }
-
-  if (output.errors?.length == 0) delete output.errors;
-  return output;
-}
-
-document.querySelector('#run')?.addEventListener('click', async () => {});
+document.querySelector('#run')?.addEventListener('click', async () => {
+  console.log(
+    babel.transform('import * as fs from "../lol/thing.ts";', {
+      root: '/',
+      cwd: '/',
+      filename: '/hello world/hi/index.js',
+      plugins: [
+        importRewrite((source, file) => {
+          return requireResolve({
+            id: source,
+            importer: file,
+            readFileSync: (fileName) => getFile(fileName)?.contents as string,
+            fileExists: (fileName) => fileExists(fileName),
+            directoryExists: (directoryName) => directoryExists(directoryName),
+          });
+        }),
+      ],
+    }).code
+  );
+});
 
 // type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 // const iframe = document
