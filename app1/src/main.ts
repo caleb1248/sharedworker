@@ -4,8 +4,9 @@ import './layout';
 import path from 'path-browserify';
 import FsWorker from './fsLoader?worker';
 import { transform } from '@babel/standalone';
-transform('console.log("hello world");', { plugins: [''] });
+transform('import * as fs from "fs";', { plugins: [importRewrite()] });
 import './style.css';
+import importRewrite from './importRewrite';
 
 const fsLoader = new FsWorker();
 
