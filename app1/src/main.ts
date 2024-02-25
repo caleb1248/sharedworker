@@ -5,6 +5,7 @@ import FsWorker from './fsLoader?worker';
 import type { FsFolder } from './fileTypes';
 // import { resolveImport } from 'resolve-import';
 import isCore from 'is-core-module';
+babel.transform('hi', { presets: ['react'] });
 console.log(isCore('fs'));
 // resolveImport;
 // import type { ChannelMessage, ResponseData } from '../../app2/src/types';
