@@ -41,3 +41,5 @@ function resolveImport(
     }
   }
 }
+
+export default resolveImport;
