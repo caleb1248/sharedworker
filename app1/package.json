@@ -21,8 +21,9 @@
   "dependencies": {
     "@babel/standalone": "^7.23.10",
     "@types/babel__standalone": "^7.1.7",
-    "browser-resolve": "^2.0.0",
+    "events": "^3.3.0",
     "monaco-editor": "^0.46.0",
-    "path-browserify": "^1.0.1"
+    "path-browserify": "^1.0.1",
+    "resolve-import": "^1.4.5"
   }
 }

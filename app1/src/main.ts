@@ -2,28 +2,30 @@ import './style.css';
 import * as babel from '@babel/standalone';
 import './layout';
 import FsWorker from './fsLoader?worker';
-import importRewrite from './importRewrite';
 import type { FsFolder } from './fileTypes';
-import { requireResolve } from './requireResolve';
+// import { resolveImport } from 'resolve-import';
+import isCore from 'is-core-module';
+console.log(isCore('fs'));
+// resolveImport;
 // import type { ChannelMessage, ResponseData } from '../../app2/src/types';
-console.log(
-  babel.transform('import * as fs from "../lol/thing.ts";', {
-    root: '/',
-    cwd: '/',
-    filename: '/hello world/hi/index.js',
-    plugins: [
-      importRewrite((source, file) => {
-        return requireResolve({
-          id: source,
-          importer: file,
-          readFileSync: (fileName) => getFile(fileName)?.contents as string,
-          fileExists: (fileName) => fileExists(fileName),
-          directoryExists: (directoryName) => directoryExists(directoryName),
-        });
-      }),
-    ],
-  }).code
-);
+// console.log(
+//   babel.transform('import * as fs from "../lol/thing.ts";', {
+//     root: '/',
+//     cwd: '/',
+//     filename: '/hello world/hi/index.js',
+//     plugins: [
+//       importRewrite((source, file) => {
+//         return requireResolve({
+//           id: source,
+//           importer: file,
+//           readFileSync: (fileName) => getFile(fileName)?.contents as string,
+//           fileExists: (fileName) => fileExists(fileName),
+//           directoryExists: (directoryName) => directoryExists(directoryName),
+//         });
+//       }),
+//     ],
+//   }).code
+// );
 
 const fsLoader = new FsWorker();
 
@@ -117,15 +119,15 @@ document.querySelector('#run')?.addEventListener('click', async () => {
       cwd: '/',
       filename: '/hello world/hi/index.js',
       plugins: [
-        importRewrite((source, file) => {
-          return requireResolve({
-            id: source,
-            importer: file,
-            readFileSync: (fileName) => getFile(fileName)?.contents as string,
-            fileExists: (fileName) => fileExists(fileName),
-            directoryExists: (directoryName) => directoryExists(directoryName),
-          });
-        }),
+        // importRewrite((source, file) => {
+        //   return requireResolve({
+        //     id: source,
+        //     importer: file,
+        //     readFileSync: (fileName) => getFile(fileName)?.contents as string,
+        //     fileExists: (fileName) => fileExists(fileName),
+        //     directoryExists: (directoryName) => directoryExists(directoryName),
+        //   });
+        // }),
       ],
     }).code
   );
