@@ -1,17 +1,12 @@
 import { dirname, resolve } from 'path-browserify';
 import type { FsFile } from './fileTypes';
 
-const fileExtensions = [
-  'mts',
-  'cts',
-  'tsx',
-  'ts',
-  'mjs',
-  'cjs',
-  'jsx',
-  'js',
-  'json',
-];
+const extensionPriority = {
+  default: '',
+  js: ['.ts', '.tsx', '.js', '.jsx'],
+  mjs: ['.mts', '.mjs'],
+  cjs: ['.cts', '.cjs'],
+};
 
 function loadRelativePath(
   path: string,
